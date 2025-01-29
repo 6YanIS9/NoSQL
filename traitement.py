@@ -1,114 +1,76 @@
-import pandas as pd
 import sqlite3
 
-# Charger le fichier Excel
-file_path = "/mnt/data/crimes-et-delits-enregistres-par-les-services-de-gendarmerie-et-de-police-depuis-2012.xlsx"
-xls = pd.ExcelFile(file_path)
+# Connexion à la base de données (le fichier .db sera créé si il n'existe pas)
+conn = sqlite3.connect('infractions.db')
 
-# Connexion à SQLite
-conn = sqlite3.connect("forces_ordre.db")
+# Création d'un curseur pour exécuter des requêtes SQL
 cursor = conn.cursor()
 
-# Création des tables en fonction du MCD
-cursor.execute("""
+# Création des tables
+cursor.execute('''
 CREATE TABLE IF NOT EXISTS infractions (
-    code_infr TEXT PRIMARY KEY,
-    lib_infr TEXT
+    code_infr INT PRIMARY KEY,
+    lib_infr VARCHAR(50)
 )
-""")
+''')
 
-cursor.execute("""
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS départements (
+    code_dep VARCHAR(50) PRIMARY KEY,
+    nom_dep VARCHAR(50) NOT NULL
+)
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS force_odre (
+    force_odre VARCHAR(50) PRIMARY KEY
+)
+''')
+
+cursor.execute('''
 CREATE TABLE IF NOT EXISTS annee (
-    annee INTEGER PRIMARY KEY
+    annee VARCHAR(50) PRIMARY KEY
 )
-""")
+''')
 
-cursor.execute("""
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS périmètres (
+    lib_perimetre VARCHAR(50) PRIMARY KEY,
+    force_odre VARCHAR(50) NOT NULL,
+    FOREIGN KEY(force_odre) REFERENCES force_odre(force_odre)
+)
+''')
+
+cursor.execute('''
 CREATE TABLE IF NOT EXISTS brigade (
-    id_brigade INTEGER PRIMARY KEY,
-    lib_brigade TEXT
+    id_brigade VARCHAR(50) PRIMARY KEY,
+    lib_brigade VARCHAR(50) NOT NULL,
+    lib_perimetre VARCHAR(50),
+    code_dep VARCHAR(50) NOT NULL,
+    force_odre VARCHAR(50) NOT NULL,
+    FOREIGN KEY(lib_perimetre) REFERENCES périmètres(lib_perimetre),
+    FOREIGN KEY(code_dep) REFERENCES départements(code_dep),
+    FOREIGN KEY(force_odre) REFERENCES force_odre(force_odre)
 )
-""")
+''')
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS perimetres (
-    lib_perimetre TEXT PRIMARY KEY
-)
-""")
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS force_ordre (
-    force_ordre TEXT PRIMARY KEY
-)
-""")
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS departements (
-    code_dep TEXT PRIMARY KEY,
-    nom_dep TEXT
-)
-""")
-
-cursor.execute("""
+cursor.execute('''
 CREATE TABLE IF NOT EXISTS fait (
-    id_fait INTEGER PRIMARY KEY AUTOINCREMENT,
-    nb_infraction INTEGER,
-    code_infr TEXT,
-    annee INTEGER,
-    id_brigade INTEGER,
-    FOREIGN KEY (code_infr) REFERENCES infractions(code_infr),
-    FOREIGN KEY (annee) REFERENCES annee(annee),
-    FOREIGN KEY (id_brigade) REFERENCES brigade(id_brigade)
+    code_infr INT,
+    id_brigade VARCHAR(50),
+    annee VARCHAR(50),
+    nb_infraction INT,
+    PRIMARY KEY(code_infr, id_brigade, annee),
+    FOREIGN KEY(code_infr) REFERENCES infractions(code_infr),
+    FOREIGN KEY(id_brigade) REFERENCES brigade(id_brigade),
+    FOREIGN KEY(annee) REFERENCES annee(annee)
 )
-""")
+''')
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS intervenir (
-    id_brigade INTEGER,
-    lib_perimetre TEXT,
-    PRIMARY KEY (id_brigade, lib_perimetre),
-    FOREIGN KEY (id_brigade) REFERENCES brigade(id_brigade),
-    FOREIGN KEY (lib_perimetre) REFERENCES perimetres(lib_perimetre)
-)
-""")
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS se_situer (
-    id_brigade INTEGER,
-    code_dep TEXT,
-    PRIMARY KEY (id_brigade, code_dep),
-    FOREIGN KEY (id_brigade) REFERENCES brigade(id_brigade),
-    FOREIGN KEY (code_dep) REFERENCES departements(code_dep)
-)
-""")
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS appartenir (
-    id_brigade INTEGER,
-    force_ordre TEXT,
-    PRIMARY KEY (id_brigade, force_ordre),
-    FOREIGN KEY (id_brigade) REFERENCES brigade(id_brigade),
-    FOREIGN KEY (force_ordre) REFERENCES force_ordre(force_ordre)
-)
-""")
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS faire_partie (
-    lib_perimetre TEXT,
-    force_ordre TEXT,
-    PRIMARY KEY (lib_perimetre, force_ordre),
-    FOREIGN KEY (lib_perimetre) REFERENCES perimetres(lib_perimetre),
-    FOREIGN KEY (force_ordre) REFERENCES force_ordre(force_ordre)
-)
-""")
-
-# Valider les changements
+# Enregistrement des modifications
 conn.commit()
 
-# Enregistrer la base de données dans un fichier .db
+# Fermeture de la connexion
+conn.close()
 
-# Récupérer les noms des feuilles
-sheets = xls.sheet_names
-
-
-print("Base de données créée et peuplée avec succès !")
+print("Base de données 'infractions.db' créée avec succès!")
